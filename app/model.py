@@ -63,14 +63,29 @@ class InformerModel(nn.Module):
         self.d_model = kwargs["d_model"]
         self.embedding = nn.Linear(kwargs["input_dim"], self.d_model)
         self.pos_encoding = PositionalEncoding(self.d_model, kwargs["seq_length"])
-        self.encoder_layers = nn.ModuleList([EncoderLayer(d_model=self.d_model, **{k:v for k,v in kwargs.items() if k not in ['input_dim', 'd_model', 'seq_length', 'num_classes']}) for _ in range(kwargs["num_encoder_layers"])])
+        
+        # --- PERBAIKAN DI SINI ---
+        # Secara eksplisit memberikan hanya argumen yang dibutuhkan oleh EncoderLayer.
+        # Ini akan menyelesaikan TypeError yang Anda lihat.
+        self.encoder_layers = nn.ModuleList([
+            EncoderLayer(
+                d_model=self.d_model,
+                nhead=kwargs["nhead"],
+                dim_feedforward=kwargs["dim_feedforward"],
+                dropout=kwargs["dropout"],
+                attn_factor=kwargs["attn_factor"]
+            ) for _ in range(kwargs["num_encoder_layers"])
+        ])
+        # --- AKHIR PERBAIKAN ---
+        
         self.decoder = nn.Linear(self.d_model, kwargs["num_classes"])
+
     def forward(self, x):
         x = self.embedding(x) * math.sqrt(self.d_model)
         x = self.pos_encoding(x)
-        for layer in self.encoder_layers: x = layer(x)
+        for layer in self.encoder_layers: 
+            x = layer(x)
         return self.decoder(x)
-
 def load_assets():
     """Memuat semua aset yang dibutuhkan dan mengembalikannya."""
     print("Memuat model dan aset-aset penting...")
