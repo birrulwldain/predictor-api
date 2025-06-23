@@ -1,0 +1,7 @@
+torch
+pandas
+numpy
+scipy
+h5py
+fastapi
+uvicorn[standard]
