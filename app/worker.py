@@ -169,7 +169,7 @@ class Handler:
             with torch.no_grad():
                 output_logits = model(input_tensor)
                 full_probabilities = torch.sigmoid(output_logits).squeeze(0).cpu().numpy()
-            full_predictions = (full_probabilities > 0.5).astype(int)
+            full_predictions = (full_probabilities > 0.7).astype(int)
 
             # 5. Format Anotasi untuk dikirim ke Plotly di frontend
             annotations = []
