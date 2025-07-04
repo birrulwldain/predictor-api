@@ -86,12 +86,58 @@ class InformerModel(nn.Module):
         for layer in self.encoder_layers: 
             x = layer(x)
         return self.decoder(x)
+import numpy as np
+from scipy.sparse import csc_matrix, eye, diags
+from scipy.sparse.linalg import spsolve
+
+def als_baseline_correction(y, lam, p, niter=10):
+    """
+    Applies Asymmetric Least Squares (ALS) baseline correction.
+
+    Parameters
+    ----------
+    y : array_like
+        The input signal (spectrum data).
+    lam : float
+        Lambda parameter for the ALS algorithm. Controls smoothness.
+        Larger lambda means smoother baseline.
+    p : float
+        Asymmetry parameter for the ALS algorithm. Controls how much
+        the baseline is allowed to follow the signal.
+        0 < p < 1. Smaller p means baseline is more likely to be below the signal.
+    niter : int, optional
+        Number of iterations for the ALS algorithm. Default is 10.
+
+    Returns
+    -------
+    array_like
+        The estimated baseline.
+    """
+    L = len(y)
+    D = diags([1, -2, 1], [0, -1, -2], shape=(L, L - 2))
+    D = lam * D.dot(D.transpose())  # Precompute D.T * D
+    w = np.ones(L)
+    for i in range(niter):
+        W = diags(w, 0)
+        Z = W + D
+        baseline = spsolve(Z, w * y)
+        w = p * (y > baseline) + (1 - p) * (y < baseline)
+    return baseline
+
 def load_assets():
     """Memuat semua aset yang dibutuhkan dan mengembalikannya."""
     print("Memuat model dan aset-aset penting...")
     
     model = InformerModel(**MODEL_CONFIG)
-    model.load_state_dict(torch.load("assets/informer_multilabel_model.pth", map_location='cpu'))
+    state_dict = torch.load("assets/informer_multilabel_model.pth", map_location='cpu')
+    # Remove '_orig_mod.' prefix if it exists (common with torch.compile)
+    new_state_dict = {}
+    for k, v in state_dict.items():
+        if k.startswith('_orig_mod.'):
+            new_state_dict[k[len('_orig_mod.'):]] = v
+        else:
+            new_state_dict[k] = v
+    model.load_state_dict(new_state_dict)
     model.eval()
 
     with open("assets/element-map-18a.json", 'r') as f:
